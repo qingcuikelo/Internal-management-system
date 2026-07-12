@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379
     redis_db: int = 0
+    redis_test_db: int = 15
     redis_password: str = ""
 
     jwt_secret: str
@@ -59,6 +60,11 @@ class Settings(BaseSettings):
     def redis_url(self) -> str:
         auth = f":{self.redis_password}@" if self.redis_password else ""
         return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    @property
+    def redis_test_url(self) -> str:
+        auth = f":{self.redis_password}@" if self.redis_password else ""
+        return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_test_db}"
 
 
 @lru_cache

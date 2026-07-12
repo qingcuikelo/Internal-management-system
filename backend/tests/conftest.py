@@ -11,8 +11,6 @@ from starlette.testclient import TestClient
 
 from app.core.config import settings
 from app.core import database, redis as app_redis
-from app.models import Base
-
 test_engine = create_engine(settings.sqlalchemy_test_url, pool_pre_ping=True, future=True)
 TestSession = sessionmaker(bind=test_engine, autoflush=False, autocommit=False, future=True)
 
@@ -20,9 +18,12 @@ TestSession = sessionmaker(bind=test_engine, autoflush=False, autocommit=False, 
 def _drop_everything() -> None:
     with test_engine.begin() as conn:
         conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
-        for tbl in reversed(Base.metadata.sorted_tables):
-            conn.execute(text(f"DROP TABLE IF EXISTS `{tbl.name}`"))
-        conn.execute(text("DROP TABLE IF EXISTS `alembic_version`"))
+        names = conn.execute(
+            text("SELECT table_name FROM information_schema.tables WHERE table_schema = :s"),
+            {"s": settings.db_name_test},
+        ).scalars().all()
+        for name in names:
+            conn.execute(text(f"DROP TABLE IF EXISTS `{name}`"))
         conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
 
 
@@ -49,10 +50,13 @@ def db():
 
 @pytest.fixture()
 def redis_conn():
-    client = app_redis.get_redis()
+    import redis
+
+    client = redis.from_url(settings.redis_test_url, decode_responses=True)
     client.flushdb()
     yield client
     client.flushdb()
+    client.close()
 
 
 @pytest.fixture()
