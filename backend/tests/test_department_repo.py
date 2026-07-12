@@ -1,4 +1,4 @@
-from app.models import Department, Employee
+from app.models import Employee
 from app.repositories import department_repo
 from app.core.exceptions import not_found, BizError
 

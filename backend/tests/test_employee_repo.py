@@ -1,4 +1,3 @@
-from app.models import Employee
 from app.schemas.common import PageParams
 from app.repositories import employee_repo, department_repo
 

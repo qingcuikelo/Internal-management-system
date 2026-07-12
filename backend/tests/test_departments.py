@@ -19,7 +19,8 @@ def _role_id(db, code):
 def _make_user(db, username, role_code, employee_id=None):
     u = User(username=username, password_hash=hash_password("Passw0rd"),
              role_id=_role_id(db, role_code), employee_id=employee_id, status=1)
-    db.add(u); db.flush()
+    db.add(u)
+    db.flush()
     return u
 
 
@@ -59,7 +60,8 @@ def test_delete_blocked_by_employees(client, seeded):
     _make_user(seeded, "boss", "super_admin")
     tok = _login(client, "boss")
     did = client.post("/api/v1/departments", headers=_h(tok), json={"name": "A"}).json()["data"]["id"]
-    seeded.add(Employee(employee_no="E9", name="y", gender=1, department_id=did, status=1)); seeded.flush()
+    seeded.add(Employee(employee_no="E9", name="y", gender=1, department_id=did, status=1))
+    seeded.flush()
     r = client.delete(f"/api/v1/departments/{did}", headers=_h(tok))
     assert r.json()["code"] == 3002
 
@@ -78,11 +80,12 @@ def test_dept_manager_sees_only_subtree(client, seeded):
     _make_user(seeded, "boss", "super_admin")
     boss = _login(client, "boss")
     a = client.post("/api/v1/departments", headers=_h(boss), json={"name": "A"}).json()["data"]["id"]
-    b = client.post("/api/v1/departments", headers=_h(boss), json={"name": "B", "parent_id": a}).json()["data"]["id"]
+    client.post("/api/v1/departments", headers=_h(boss), json={"name": "B", "parent_id": a})
     other = client.post("/api/v1/departments", headers=_h(boss), json={"name": "Other"}).json()["data"]["id"]
     # a manager employee in dept A
     mgr_emp = Employee(employee_no="M1", name="mgr", gender=1, department_id=a, status=1)
-    seeded.add(mgr_emp); seeded.flush()
+    seeded.add(mgr_emp)
+    seeded.flush()
     _make_user(seeded, "mgr", "dept_manager", employee_id=mgr_emp.id)
     tok = _login(client, "mgr")
     listing = client.get("/api/v1/departments", headers=_h(tok)).json()["data"]["items"]
@@ -94,7 +97,8 @@ def test_dept_manager_sees_only_subtree(client, seeded):
 
 def test_employee_role_has_no_department_access(client, seeded):
     emp = Employee(employee_no="P1", name="p", gender=1, status=1)
-    seeded.add(emp); seeded.flush()
+    seeded.add(emp)
+    seeded.flush()
     _make_user(seeded, "self1", "employee", employee_id=emp.id)
     tok = _login(client, "self1")
     assert client.get("/api/v1/departments", headers=_h(tok)).json()["code"] == 1003

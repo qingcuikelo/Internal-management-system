@@ -14,9 +14,12 @@ def test_all_scope_unrestricted(db):
 
 
 def test_dept_scope_subtree(db):
-    a = department_repo.create(db, name="A", sort_order=0, status=1); db.flush()
-    b = department_repo.create(db, name="B", parent_id=a.id, sort_order=0, status=1); db.flush()
-    c = department_repo.create(db, name="C", sort_order=0, status=1); db.flush()
+    a = department_repo.create(db, name="A", sort_order=0, status=1)
+    db.flush()
+    b = department_repo.create(db, name="B", parent_id=a.id, sort_order=0, status=1)
+    db.flush()
+    c = department_repo.create(db, name="C", sort_order=0, status=1)
+    db.flush()
     ids = scope_service.accessible_department_ids(db, _u("dept", dept=a.id))
     assert ids == {a.id, b.id}
     assert c.id not in ids
