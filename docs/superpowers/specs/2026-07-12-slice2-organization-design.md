@@ -136,7 +136,7 @@ app/
 │   └── employees.py         # /employees/*
 └── api/v1.py                # 挂载 departments、employees 两个 router
 ```
-> 切片1 已有 `employee_repo.py`（认证用的 `get_active_by_username` 等）；本切片在同文件**追加**组织域查询函数，不破坏既有函数。
+> 切片1 的认证查询在 `user_repo.py`；`employee_repo.py` 与 `department_repo.py` 均为**本切片新建**。数据范围测试通过 `seed_service.run_seed(db)` 获得 5 个内置角色与权限矩阵，再构造部门/员工/账号。
 
 测试：
 ```
