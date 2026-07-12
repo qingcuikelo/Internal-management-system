@@ -138,23 +138,56 @@ def test_delete_soft(client, seeded):
     assert client.get(f"/api/v1/employees/{eid}", headers=_h(tok)).json()["code"] == 3404
 
 
-def test_out_of_scope_update_delete_404(client, seeded):
-    from app.models import Employee
+def test_out_of_scope_update_delete_404(seeded):
+    # Scope check lives in the service layer (out-of-scope target -> not_found 3404).
+    # Use a dept-scoped CurrentUser that HAS employee:update/delete (a hypothetical custom
+    # role) so we exercise the scope gate itself, not the permission gate. The built-in
+    # dept_manager is read-only for employees (see test below) and can never reach here.
+    from app.core.deps import CurrentUser
+    from app.core.exceptions import BizError
+    from app.models import Department, Employee
+    from app.schemas.employee import EmployeeUpdate
+    from app.services import employee_service
+    a = Department(name="A", sort_order=0, status=1)
+    other = Department(name="Other", sort_order=0, status=1)
+    seeded.add_all([a, other])
+    seeded.flush()
+    out_emp = Employee(employee_no="OO", name="o", gender=1, department_id=other.id, status=1)
+    seeded.add(out_emp)
+    seeded.flush()
+    real_user = _user(seeded, "cust_mgr", "dept_manager")
+    user = CurrentUser(id=real_user.id, username="cust_mgr", role_code="custom_dept",
+                       data_scope="dept", permissions={"employee:update", "employee:delete"},
+                       employee_id=None, department_id=a.id)
+
+    class _Req:
+        client = None
+        headers = {}
+
+    with pytest.raises(BizError) as ei:
+        employee_service.update(seeded, user, out_emp.id, EmployeeUpdate(name="x"), _Req())
+    assert ei.value.code == 3404
+    with pytest.raises(BizError) as ei2:
+        employee_service.delete(seeded, user, out_emp.id, _Req())
+    assert ei2.value.code == 3404
+
+
+def test_dept_manager_cannot_write_employees(client, seeded):
+    # §3.2: dept_manager is READ-ONLY for employees. Guards against re-granting write perms.
     _user(seeded, "hr", "hr_admin")
     hr = _login(client, "hr")
-    a = _dept(seeded, "A")
-    other = _dept(seeded, "Other")
-    mgr = Employee(employee_no="M2", name="m", gender=1, department_id=a.id, status=1)
+    eid = client.post("/api/v1/employees", headers=_h(hr),
+                      json={"employee_no": "RO", "name": "ro", "gender": 1}).json()["data"]["id"]
+    mgr = Employee(employee_no="M3", name="m3", gender=1, status=1)
     seeded.add(mgr)
     seeded.flush()
-    out_id = client.post("/api/v1/employees", headers=_h(hr),
-                         json={"employee_no": "OO", "name": "o", "gender": 1,
-                               "department_id": other.id}).json()["data"]["id"]
-    _user(seeded, "mgr2", "dept_manager", employee_id=mgr.id)
-    tok = _login(client, "mgr2")
-    assert client.put(f"/api/v1/employees/{out_id}", headers=_h(tok),
-                      json={"name": "x"}).json()["code"] == 3404
-    assert client.delete(f"/api/v1/employees/{out_id}", headers=_h(tok)).json()["code"] == 3404
+    _user(seeded, "mgr3", "dept_manager", employee_id=mgr.id)
+    tok = _login(client, "mgr3")
+    assert client.post("/api/v1/employees", headers=_h(tok),
+                       json={"employee_no": "Z", "name": "z", "gender": 1}).json()["code"] == 1003
+    assert client.put(f"/api/v1/employees/{eid}", headers=_h(tok),
+                      json={"name": "x"}).json()["code"] == 1003
+    assert client.delete(f"/api/v1/employees/{eid}", headers=_h(tok)).json()["code"] == 1003
 
 
 def test_batch_department_respects_dept_scope(seeded):
