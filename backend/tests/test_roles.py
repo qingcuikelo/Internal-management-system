@@ -123,3 +123,19 @@ def test_non_super_forbidden(client, seeded):
     _make_user(seeded, "hr", "hr_admin")
     tok = _login(client, "hr")
     assert client.get("/api/v1/roles", headers=_h(tok)).json()["code"] == 1003
+
+
+def test_delete_custom_role_removes_role_permissions(client, seeded):
+    from app.models import RolePermission
+
+    _make_user(seeded, "boss", "super_admin")
+    tok = _login(client, "boss")
+    rid = client.post("/api/v1/roles", headers=_h(tok),
+                      json={"code": "testdel", "name": "测试删除", "data_scope": "all"}).json()["data"]["id"]
+    client.put(f"/api/v1/roles/{rid}/permissions", headers=_h(tok),
+               json={"codes": ["department:view", "employee:view"]})
+    r = client.delete(f"/api/v1/roles/{rid}", headers=_h(tok)).json()
+    assert r["code"] == 0
+    seeded.expire_all()
+    count = seeded.query(RolePermission).filter(RolePermission.role_id == rid).count()
+    assert count == 0

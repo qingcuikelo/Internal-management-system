@@ -106,3 +106,17 @@ def test_non_super_forbidden(client, seeded):
     _make_user(seeded, "hr", "hr_admin")
     tok = _login(client, "hr")
     assert client.get("/api/v1/users", headers=_h(tok)).json()["code"] == 1003
+
+
+def test_put_user_role_change(client, seeded):
+    _make_user(seeded, "boss", "super_admin")
+    tok = _login(client, "boss")
+    hr_rid = _role_id(seeded, "hr_admin")
+    u = client.post("/api/v1/users", headers=_h(tok),
+                     json={"username": "putrole", "password": "Secret123", "role_id": hr_rid}).json()["data"]
+    uid = u["id"]
+    emp_rid = _role_id(seeded, "employee")
+    r = client.put(f"/api/v1/users/{uid}", headers=_h(tok),
+                    json={"role_id": emp_rid}).json()
+    assert r["code"] == 0
+    assert r["data"]["role_code"] == "employee"

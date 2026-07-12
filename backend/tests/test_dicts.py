@@ -88,3 +88,14 @@ def test_employee_can_read_type_but_not_manage(client, seeded):
     assert client.get("/api/v1/dicts", headers=_h(tok)).json()["code"] == 1003
     assert client.post("/api/v1/dicts", headers=_h(tok),
                        json={"dict_type": "x", "dict_key": "y", "dict_label": "z"}).json()["code"] == 1003
+
+
+def test_second_read_served_from_cache(client, seeded, redis_conn):
+    _make_user(seeded, "boss", "super_admin")
+    tok = _login(client, "boss")
+    r1 = client.get("/api/v1/dicts/gender", headers=_h(tok)).json()
+    assert r1["code"] == 0
+    assert redis_conn.get("dict:gender") is not None
+    r2 = client.get("/api/v1/dicts/gender", headers=_h(tok)).json()
+    assert r2["code"] == 0
+    assert r1["data"]["items"] == r2["data"]["items"]
