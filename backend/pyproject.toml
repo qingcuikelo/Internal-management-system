@@ -36,3 +36,7 @@ target-version = "py311"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v"
+filterwarnings = [
+    "error",
+    "ignore:Using `httpx`.*:Warning",
+]

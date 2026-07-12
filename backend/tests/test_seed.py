@@ -1,6 +1,6 @@
 from sqlalchemy import select
 
-from app.models import Role, Permission, RolePermission, User, DataDict
+from app.models import Role, Permission, User, DataDict
 from app.services import seed_service
 
 

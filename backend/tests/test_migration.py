@@ -20,7 +20,7 @@ def _alembic(*args):
 
 
 def test_upgrade_creates_all_tables():
-    down = _alembic("downgrade", "base")
+    _alembic("downgrade", "base")
     up = _alembic("upgrade", "head")
     assert up.returncode == 0, up.stderr
 

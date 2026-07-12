@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import CHAR, Computed, Integer, String, event
+from sqlalchemy import CHAR, Computed, Integer, event
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 

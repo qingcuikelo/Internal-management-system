@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.exceptions import unauthorized, account_locked, forbidden
+from app.core.exceptions import unauthorized, account_locked
 from app.core.security import (
     verify_password, hash_password, create_access_token, create_refresh_token, decode_token,
     password_changed_after_issue,
