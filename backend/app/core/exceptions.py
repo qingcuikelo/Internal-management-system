@@ -25,6 +25,10 @@ def forbidden(message: str = "无权访问该资源") -> BizError:
     return BizError(1003, message, 403)
 
 
+def not_found(message: str = "资源不存在") -> BizError:
+    return BizError(3404, message, 404)
+
+
 def biz(code: int, message: str, http_status: int = 409) -> BizError:
     return BizError(code, message, http_status)
 
