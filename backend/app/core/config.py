@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     login_max_fail: int = 5
     login_lock_minutes: int = 15
+    dict_cache_ttl: int = 600
 
     seed_admin_username: str = "admin"
     seed_admin_password: str = ""
