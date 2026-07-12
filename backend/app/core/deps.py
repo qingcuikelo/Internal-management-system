@@ -74,4 +74,8 @@ def data_scope_descriptor(user: CurrentUser) -> dict:
         return {"scope": "all"}
     if user.data_scope == "self":
         return {"scope": "self", "employee_id": user.employee_id}
+    # NOTE for downstream (slice 2/3): when scope == "dept" and department_id is None
+    # (dept-scoped user with no bound employee), a naive `WHERE department_id = NULL`
+    # filter matches zero rows. Repositories consuming this descriptor MUST treat a
+    # None department_id as "no accessible rows", not "no filter".
     return {"scope": "dept", "department_id": user.department_id}

@@ -25,10 +25,6 @@ def forbidden(message: str = "无权访问该资源") -> BizError:
     return BizError(1003, message, 403)
 
 
-def validation(message: str = "参数校验失败") -> BizError:
-    return BizError(2001, message, 422)
-
-
 def biz(code: int, message: str, http_status: int = 409) -> BizError:
     return BizError(code, message, http_status)
 

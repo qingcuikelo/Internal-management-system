@@ -38,7 +38,7 @@ def test_login_wrong_password_fails(client, admin_user):
 
 def test_login_lockout_after_5_failures(client, admin_user):
     for _ in range(5):
-        _login(client, "admin", "nope")
+        assert _login(client, "admin", "nope").json()["code"] == 1001
     resp = _login(client, "admin", "Admin@123")
     assert resp.json()["code"] == 1002  # locked despite correct password
 

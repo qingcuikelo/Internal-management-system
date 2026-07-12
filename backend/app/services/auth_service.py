@@ -38,8 +38,10 @@ def login(db: Session, redis, username: str, password: str,
     if user is None or user.status != 1:
         raise unauthorized("账号或密码错误")
     if not verify_password(password, user.password_hash):
-        fails = redis.incr(_fail_key(username))
-        redis.expire(_fail_key(username), settings.login_lock_minutes * 60)
+        pipe = redis.pipeline()
+        pipe.incr(_fail_key(username))
+        pipe.expire(_fail_key(username), settings.login_lock_minutes * 60)
+        fails = pipe.execute()[0]
         if fails >= settings.login_max_fail:
             redis.set(_lock_key(username), "1", ex=settings.login_lock_minutes * 60)
         raise unauthorized("账号或密码错误")
