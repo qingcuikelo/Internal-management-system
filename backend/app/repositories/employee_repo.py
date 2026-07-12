@@ -65,6 +65,15 @@ def batch_set_department(db: Session, ids: list[str], department_id: str | None,
     return result.rowcount
 
 
+def ids_in_departments(db: Session, dept_ids: set[str]) -> set[str]:
+    if not dept_ids:
+        return set()
+    stmt = select(Employee.id).where(
+        Employee.department_id.in_(dept_ids), Employee.deleted_at.is_(None)
+    )
+    return set(db.execute(stmt).scalars().all())
+
+
 def supervisor_chain_has(db: Session, start_supervisor_id: str, target_id: str) -> bool:
     seen: set[str] = set()
     current = start_supervisor_id

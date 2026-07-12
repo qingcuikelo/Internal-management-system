@@ -29,6 +29,14 @@ def not_found(message: str = "资源不存在") -> BizError:
     return BizError(3404, message, 404)
 
 
+def conflict(message: str = "资源冲突，请刷新后重试") -> BizError:
+    return BizError(3001, message, 409)
+
+
+def invalid_state(message: str = "当前状态不允许该操作") -> BizError:
+    return BizError(3007, message, 409)
+
+
 def biz(code: int, message: str, http_status: int = 409) -> BizError:
     return BizError(code, message, http_status)
 

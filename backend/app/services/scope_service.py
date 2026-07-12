@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, data_scope_descriptor
-from app.repositories import department_repo
+from app.repositories import department_repo, employee_repo
 from app.utils.tree import descendant_ids
 
 
@@ -27,3 +27,13 @@ def employee_scope(db: Session, user: CurrentUser) -> dict:
         return {"mode": "self", "employee_id": desc.get("employee_id")}
     ids = accessible_department_ids(db, user) or set()
     return {"mode": "dept", "dept_ids": ids}
+
+
+def asset_scope(db: Session, user: CurrentUser) -> dict:
+    desc = data_scope_descriptor(user)
+    if desc["scope"] == "all":
+        return {"mode": "all"}
+    if desc["scope"] == "self":
+        return {"mode": "self", "employee_id": desc.get("employee_id")}
+    dept_ids = accessible_department_ids(db, user) or set()
+    return {"mode": "employees", "employee_ids": employee_repo.ids_in_departments(db, dept_ids)}
