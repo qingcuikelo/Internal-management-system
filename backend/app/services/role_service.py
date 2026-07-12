@@ -74,6 +74,7 @@ def delete(db: Session, user: CurrentUser, id_: str, req: Request) -> None:
     if role_repo.users_count(db, role.id) > 0:
         raise biz(3002, "角色下有账号，不能删除")
     role_repo.delete(db, role)
+    db.flush()
     operation_log_repo.create(db, user_id=user.id, module="role", action="delete",
                               target_type="role", target_id=id_,
                               detail={"code": role.code}, ip=_ip(req), user_agent=_ua(req))
@@ -101,7 +102,7 @@ def assign_permissions(db: Session, user: CurrentUser, id_: str, codes: list[str
         ids.add(perm.id)
     role_repo.set_permissions(db, role.id, ids)
     db.flush()
-    operation_log_repo.create(db, user_id=user.id, module="role", action="assign_permissions",
+    operation_log_repo.create(db, user_id=user.id, module="role", action="assign",
                               target_type="role", target_id=role.id,
                               detail={"codes": sorted(set(codes))}, ip=_ip(req), user_agent=_ua(req))
     db.commit()
