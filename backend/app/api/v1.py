@@ -6,6 +6,7 @@ from app.routers.departments import router as departments_router
 from app.routers.employees import router as employees_router
 from app.routers.workstations import router as workstations_router
 from app.routers.devices import router as devices_router
+from app.routers.users import router as users_router
 
 api_router = APIRouter(prefix=settings.api_prefix)
 api_router.include_router(auth_router)
@@ -13,3 +14,4 @@ api_router.include_router(departments_router)
 api_router.include_router(employees_router)
 api_router.include_router(workstations_router)
 api_router.include_router(devices_router)
+api_router.include_router(users_router)
