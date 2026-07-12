@@ -116,3 +116,73 @@ def test_employee_self_scope(client, seeded):
     data = client.get("/api/v1/employees", headers=_h(tok)).json()["data"]
     assert data["total"] == 1 and data["items"][0]["employee_no"] == "SELF"
     assert client.get(f"/api/v1/employees/{other.id}", headers=_h(tok)).json()["code"] == 3404
+
+
+def test_update_fields(client, seeded):
+    _user(seeded, "hr", "hr_admin")
+    tok = _login(client, "hr")
+    eid = client.post("/api/v1/employees", headers=_h(tok),
+                      json={"employee_no": "U1", "name": "old", "gender": 1}).json()["data"]["id"]
+    r = client.put(f"/api/v1/employees/{eid}", headers=_h(tok),
+                   json={"name": "new", "position": "工程师"})
+    assert r.json()["code"] == 0
+    assert client.get(f"/api/v1/employees/{eid}", headers=_h(tok)).json()["data"]["name"] == "new"
+
+
+def test_delete_soft(client, seeded):
+    _user(seeded, "hr", "hr_admin")
+    tok = _login(client, "hr")
+    eid = client.post("/api/v1/employees", headers=_h(tok),
+                      json={"employee_no": "D1", "name": "d", "gender": 1}).json()["data"]["id"]
+    assert client.delete(f"/api/v1/employees/{eid}", headers=_h(tok)).json()["code"] == 0
+    assert client.get(f"/api/v1/employees/{eid}", headers=_h(tok)).json()["code"] == 3404
+
+
+def test_out_of_scope_update_delete_404(client, seeded):
+    from app.models import Employee
+    _user(seeded, "hr", "hr_admin")
+    hr = _login(client, "hr")
+    a = _dept(seeded, "A")
+    other = _dept(seeded, "Other")
+    mgr = Employee(employee_no="M2", name="m", gender=1, department_id=a.id, status=1)
+    seeded.add(mgr)
+    seeded.flush()
+    out_id = client.post("/api/v1/employees", headers=_h(hr),
+                         json={"employee_no": "OO", "name": "o", "gender": 1,
+                               "department_id": other.id}).json()["data"]["id"]
+    _user(seeded, "mgr2", "dept_manager", employee_id=mgr.id)
+    tok = _login(client, "mgr2")
+    assert client.put(f"/api/v1/employees/{out_id}", headers=_h(tok),
+                      json={"name": "x"}).json()["code"] == 3404
+    assert client.delete(f"/api/v1/employees/{out_id}", headers=_h(tok)).json()["code"] == 3404
+
+
+def test_batch_department_respects_dept_scope(seeded):
+    from app.core.deps import CurrentUser
+    from app.models import Department, Employee
+    from app.schemas.employee import BatchDepartmentReq
+    from app.services import employee_service
+    a = Department(name="A", sort_order=0, status=1)
+    other = Department(name="Other", sort_order=0, status=1)
+    dest = Department(name="Dest", sort_order=0, status=1)
+    seeded.add_all([a, other, dest])
+    seeded.flush()
+    in_scope = Employee(employee_no="IN", name="i", gender=1, department_id=a.id, status=1)
+    out_scope = Employee(employee_no="OUT", name="o", gender=1, department_id=other.id, status=1)
+    seeded.add_all([in_scope, out_scope])
+    seeded.flush()
+    real_user = _user(seeded, "scope_u", "dept_manager")
+    user = CurrentUser(id=real_user.id, username="scope_u", role_code="dept_manager",
+                       data_scope="dept", permissions={"employee:update"},
+                       employee_id=None, department_id=a.id)
+    req = BatchDepartmentReq(employee_ids=[in_scope.id, out_scope.id], department_id=dest.id)
+
+    class _Req:
+        client = None
+        headers = {}
+    result = employee_service.batch_department(seeded, user, req, _Req())
+    assert result["updated"] == 1  # only the in-scope employee moved
+    seeded.refresh(in_scope)
+    seeded.refresh(out_scope)
+    assert in_scope.department_id == dest.id
+    assert out_scope.department_id == other.id  # unchanged

@@ -57,10 +57,10 @@ def soft_delete(db: Session, emp: Employee) -> None:
     emp.deleted_at = datetime.now(timezone.utc)
 
 
-def batch_set_department(db: Session, ids: list[str], department_id: str | None) -> int:
+def batch_set_department(db: Session, ids: list[str], department_id: str | None, updated_by: str | None = None) -> int:
     stmt = (update(Employee)
             .where(Employee.id.in_(ids), Employee.deleted_at.is_(None))
-            .values(department_id=department_id))
+            .values(department_id=department_id, updated_by=updated_by))
     result = db.execute(stmt)
     return result.rowcount
 

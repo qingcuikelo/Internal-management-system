@@ -32,7 +32,9 @@ ROLE_MATRIX: dict[str, set[str]] = {
         "device:view", "device:manage", "report:view",
     },
     "dept_manager": {
-        "department:view", "employee:view", "workstation:view", "device:view", "report:view",
+        "department:view", "department:create", "department:update", "department:delete",
+        "employee:view", "employee:create", "employee:update", "employee:delete",
+        "workstation:view", "device:view", "report:view",
     },
     "employee": {
         "employee:view", "workstation:view", "device:view",

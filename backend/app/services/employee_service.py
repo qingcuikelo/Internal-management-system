@@ -108,10 +108,12 @@ def update(db: Session, user: CurrentUser, id_: str, data, req: Request) -> dict
         # walking up from the new supervisor must not reach this employee
         if employee_repo.supervisor_chain_has(db, data.direct_supervisor_id, id_):
             raise biz(3004, "直属上级不能形成环")
-        emp.direct_supervisor_id = data.direct_supervisor_id
     if data.department_id is not None:
         if data.department_id and department_repo.get_active(db, data.department_id) is None:
             raise biz(3002, "部门不存在")
+    if data.direct_supervisor_id is not None:
+        emp.direct_supervisor_id = data.direct_supervisor_id
+    if data.department_id is not None:
         emp.department_id = data.department_id
     for field in ("name", "gender", "email", "phone", "position", "hire_date", "status"):
         val = getattr(data, field)
@@ -134,6 +136,7 @@ def delete(db: Session, user: CurrentUser, id_: str, req: Request) -> None:
     emp = employee_repo.get_active(db, id_)
     if emp is None or not _visible(db, user, emp):
         raise not_found("员工不存在")
+    emp.updated_by = user.id
     employee_repo.soft_delete(db, emp)
     operation_log_repo.create(db, user_id=user.id, module="employee", action="delete",
                               target_type="employee", target_id=id_,
@@ -144,7 +147,20 @@ def delete(db: Session, user: CurrentUser, id_: str, req: Request) -> None:
 def batch_department(db: Session, user: CurrentUser, data, req: Request) -> dict:
     if data.department_id and department_repo.get_active(db, data.department_id) is None:
         raise biz(3002, "部门不存在")
-    n = employee_repo.batch_set_department(db, data.employee_ids, data.department_id)
+    scope = scope_service.employee_scope(db, user)
+    ids = data.employee_ids
+    if scope["mode"] != "all":
+        allowed = []
+        for eid in ids:
+            emp = employee_repo.get_active(db, eid)
+            if emp is None:
+                continue
+            if scope["mode"] == "self" and emp.id == scope.get("employee_id"):
+                allowed.append(eid)
+            elif scope["mode"] == "dept" and emp.department_id in (scope.get("dept_ids") or set()):
+                allowed.append(eid)
+        ids = allowed
+    n = employee_repo.batch_set_department(db, ids, data.department_id, user.id)
     operation_log_repo.create(db, user_id=user.id, module="employee", action="batch_update",
                               target_type="employee", target_id=None,
                               detail={"ids": data.employee_ids, "department_id": data.department_id},
