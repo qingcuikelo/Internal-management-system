@@ -78,3 +78,15 @@ def test_resign_requires_permission(client, seeded):
     tok = _login(client, "itx")
     assert client.post(f"/api/v1/employees/{emp.id}/resign", headers=_h(tok),
                        json={"resign_date": date.today().isoformat()}).json()["code"] == 1003
+
+
+def test_resign_already_resigned_rejected(client, seeded):
+    from app.models import Employee
+    _user(seeded, "hr", "hr_admin")
+    tok = _login(client, "hr")
+    emp = Employee(employee_no="RR", name="rr", gender=1, status=0)  # already resigned
+    seeded.add(emp)
+    seeded.flush()
+    r = client.post(f"/api/v1/employees/{emp.id}/resign", headers=_h(tok),
+                    json={"resign_date": date.today().isoformat()})
+    assert r.json()["code"] == 2001

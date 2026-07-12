@@ -150,8 +150,10 @@ def delete(db: Session, user: CurrentUser, id_: str, req: Request) -> None:
 
 def resign(db: Session, user: CurrentUser, id_: str, resign_date, req: Request) -> dict:
     emp = employee_repo.get_active(db, id_)
-    if emp is None:
+    if emp is None or not _visible(db, user, emp):
         raise not_found("员工不存在")
+    if emp.status == 0:
+        raise biz(2001, "该员工已离职")
     day = resign_date or date.today()
 
     # 1) release occupied workstations
