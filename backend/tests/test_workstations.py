@@ -7,7 +7,9 @@ from app.services import seed_service
 
 @pytest.fixture()
 def seeded(db):
-    seed_service.run_seed(db); db.flush(); return db
+    seed_service.run_seed(db)
+    db.flush()
+    return db
 
 
 def _role_id(db, code):
@@ -17,7 +19,9 @@ def _role_id(db, code):
 def _user(db, username, role_code, employee_id=None):
     u = User(username=username, password_hash=hash_password("Passw0rd"),
              role_id=_role_id(db, role_code), employee_id=employee_id, status=1)
-    db.add(u); db.flush(); return u
+    db.add(u)
+    db.flush()
+    return u
 
 
 def _login(client, u):
@@ -30,7 +34,9 @@ def _h(t):
 
 def _emp(db, no, dept=None):
     e = Employee(employee_no=no, name=no, gender=1, department_id=dept, status=1)
-    db.add(e); db.flush(); return e
+    db.add(e)
+    db.flush()
+    return e
 
 
 def test_create_assign_release_history(client, seeded):
@@ -87,7 +93,9 @@ def test_status_reserve(client, seeded):
 def test_data_scope_and_idle_invisible(client, seeded):
     _user(seeded, "it", "it_admin")
     it = _login(client, "it")
-    a = Department(name="A", sort_order=0, status=1); seeded.add(a); seeded.flush()
+    a = Department(name="A", sort_order=0, status=1)
+    seeded.add(a)
+    seeded.flush()
     mgr = _emp(seeded, "M", dept=a.id)
     occupied = client.post("/api/v1/workstations", headers=_h(it), json={"code": "D-1", "type": "fixed"}).json()["data"]["id"]
     client.post(f"/api/v1/workstations/{occupied}/assign", headers=_h(it), json={"employee_id": mgr.id})

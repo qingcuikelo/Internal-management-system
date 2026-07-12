@@ -44,3 +44,7 @@ class EmployeeUpdate(BaseModel):
 class BatchDepartmentReq(BaseModel):
     employee_ids: list[str] = Field(min_length=1)
     department_id: str | None = None
+
+
+class ResignReq(BaseModel):
+    resign_date: date | None = None

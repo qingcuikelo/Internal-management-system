@@ -5,7 +5,8 @@ from app.core.database import get_db
 from app.core.deps import CurrentUser, require_permission
 from app.core.response import envelope
 from app.schemas.common import PageParams
-from app.schemas.employee import EmployeeCreate, EmployeeUpdate, BatchDepartmentReq
+from app.schemas.employee import (BatchDepartmentReq, EmployeeCreate,
+                                  EmployeeUpdate, ResignReq)
 from app.services import employee_service
 
 router = APIRouter(prefix="/employees", tags=["employees"])
@@ -43,6 +44,13 @@ def delete(id_: str, request: Request, db: Session = Depends(get_db),
            user: CurrentUser = Depends(require_permission("employee:delete"))):
     employee_service.delete(db, user, id_, request)
     return envelope(message="已删除")
+
+
+@router.post("/{id_}/resign")
+def resign(id_: str, body: ResignReq, request: Request, db: Session = Depends(get_db),
+           user: CurrentUser = Depends(require_permission("employee:resign"))):
+    return envelope(data=employee_service.resign(db, user, id_, body.resign_date, request),
+                    message="离职处理完成")
 
 
 @router.patch("/batch-department")

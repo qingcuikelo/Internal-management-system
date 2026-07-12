@@ -1,4 +1,3 @@
-from datetime import date
 
 from sqlalchemy import select, func, or_, update
 from sqlalchemy.orm import Session

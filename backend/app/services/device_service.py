@@ -1,11 +1,8 @@
 from datetime import date
 
-from fastapi import Request
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from app.core.constants import DeviceStatus
-from app.core.deps import CurrentUser
 from app.core.exceptions import biz, not_found, conflict, invalid_state
 from app.models import Device
 from app.repositories import device_repo, assignment_repo, employee_repo, operation_log_repo
@@ -59,7 +56,8 @@ def create(db, user, data, req) -> dict:
     try:
         db.flush()
     except IntegrityError:
-        db.rollback(); raise biz(3005, "资产编号/序列号已存在")
+        db.rollback()
+        raise biz(3005, "资产编号/序列号已存在")
     operation_log_repo.create(db, user_id=user.id, module="device", action="create",
                               target_type="device", target_id=d.id, detail={"asset_code": d.asset_code},
                               ip=_ip(req), user_agent=_ua(req))
@@ -79,7 +77,8 @@ def update(db, user, id_, data, req) -> dict:
     try:
         db.flush()
     except IntegrityError:
-        db.rollback(); raise biz(3005, "序列号已存在")
+        db.rollback()
+        raise biz(3005, "序列号已存在")
     operation_log_repo.create(db, user_id=user.id, module="device", action="update",
                               target_type="device", target_id=d.id, detail={"asset_code": d.asset_code},
                               ip=_ip(req), user_agent=_ua(req))
@@ -103,7 +102,8 @@ def checkout(db, user, id_, data, req) -> dict:
     operation_log_repo.create(db, user_id=user.id, module="device", action="checkout",
                               target_type="device", target_id=id_, detail={"employee_id": data.employee_id},
                               ip=_ip(req), user_agent=_ua(req))
-    db.commit(); db.refresh(d)
+    db.commit()
+    db.refresh(d)
     return _out(d)
 
 
@@ -118,7 +118,8 @@ def return_(db, user, id_, req) -> dict:
     operation_log_repo.create(db, user_id=user.id, module="device", action="return",
                               target_type="device", target_id=id_, detail=None,
                               ip=_ip(req), user_agent=_ua(req))
-    db.commit(); db.refresh(d)
+    db.commit()
+    db.refresh(d)
     return _out(d)
 
 
@@ -132,7 +133,8 @@ def repair(db, user, id_, req) -> dict:
     operation_log_repo.create(db, user_id=user.id, module="device", action="repair",
                               target_type="device", target_id=id_, detail=None,
                               ip=_ip(req), user_agent=_ua(req))
-    db.commit(); db.refresh(d)
+    db.commit()
+    db.refresh(d)
     return _out(d)
 
 
@@ -146,7 +148,8 @@ def scrap(db, user, id_, req) -> dict:
     operation_log_repo.create(db, user_id=user.id, module="device", action="scrap",
                               target_type="device", target_id=id_, detail=None,
                               ip=_ip(req), user_agent=_ua(req))
-    db.commit(); db.refresh(d)
+    db.commit()
+    db.refresh(d)
     return _out(d)
 
 

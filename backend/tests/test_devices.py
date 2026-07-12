@@ -7,7 +7,9 @@ from app.services import seed_service
 
 @pytest.fixture()
 def seeded(db):
-    seed_service.run_seed(db); db.flush(); return db
+    seed_service.run_seed(db)
+    db.flush()
+    return db
 
 
 def _role_id(db, code):
@@ -17,7 +19,9 @@ def _role_id(db, code):
 def _user(db, username, role_code, employee_id=None):
     u = User(username=username, password_hash=hash_password("Passw0rd"),
              role_id=_role_id(db, role_code), employee_id=employee_id, status=1)
-    db.add(u); db.flush(); return u
+    db.add(u)
+    db.flush()
+    return u
 
 
 def _login(client, u):
@@ -29,7 +33,10 @@ def _h(t):
 
 
 def _emp(db, no):
-    e = Employee(employee_no=no, name=no, gender=1, status=1); db.add(e); db.flush(); return e
+    e = Employee(employee_no=no, name=no, gender=1, status=1)
+    db.add(e)
+    db.flush()
+    return e
 
 
 def test_checkout_return_history(client, seeded):

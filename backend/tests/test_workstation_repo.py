@@ -1,7 +1,7 @@
 from datetime import date
 
 from app.core.constants import WorkstationStatus
-from app.models import Workstation, Employee, Role, User
+from app.models import Employee, Role, User
 from app.repositories import workstation_repo, assignment_repo
 from app.schemas.common import PageParams
 
@@ -14,15 +14,18 @@ def _ws(db, code, status=WorkstationStatus.IDLE):
 
 def _emp(db, no):
     e = Employee(employee_no=no, name=no, gender=1, status=1)
-    db.add(e); db.flush()
+    db.add(e)
+    db.flush()
     return e
 
 
 def _op_user(db):
     role = Role(code="op_role", name="op_role", data_scope="all", status=1)
-    db.add(role); db.flush()
+    db.add(role)
+    db.flush()
     u = User(id="op", username="operator", password_hash="x", role_id=role.id, status=1)
-    db.add(u); db.flush()
+    db.add(u)
+    db.flush()
     return u
 
 
@@ -70,10 +73,11 @@ def test_history_open_and_close(db):
 
 
 def test_paginate_scope(db):
-    a = _ws(db, "A-5"); e = _emp(db, "E5")
+    a = _ws(db, "A-5")
+    e = _emp(db, "E5")
     workstation_repo.assign_if_free(db, a.id, e.id, date.today(), a.version, "op")
     db.flush()
-    idle = _ws(db, "A-6")  # idle, no occupant
+    _ws(db, "A-6")  # idle, no occupant — intentionally discarded
     # dept scope with employee e -> sees occupied one, not the idle one
     items, total = workstation_repo.paginate(
         db, params=PageParams(), scope={"mode": "employees", "employee_ids": {e.id}})

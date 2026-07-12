@@ -1,11 +1,15 @@
+from datetime import date
+
 from fastapi import Request
+from sqlalchemy import select, update as sa_update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser
 from app.core.exceptions import biz, not_found
-from app.models import Employee
-from app.repositories import employee_repo, department_repo, operation_log_repo
+from app.models import Device, Employee, User, Workstation
+from app.repositories import (assignment_repo, department_repo, device_repo,
+                              employee_repo, operation_log_repo, workstation_repo)
 from app.services import scope_service
 
 
@@ -142,6 +146,54 @@ def delete(db: Session, user: CurrentUser, id_: str, req: Request) -> None:
                               target_type="employee", target_id=id_,
                               detail={"employee_no": emp.employee_no}, ip=_ip(req), user_agent=_ua(req))
     db.commit()
+
+
+def resign(db: Session, user: CurrentUser, id_: str, resign_date, req: Request) -> dict:
+    emp = employee_repo.get_active(db, id_)
+    if emp is None:
+        raise not_found("员工不存在")
+    day = resign_date or date.today()
+
+    # 1) release occupied workstations
+    ws_ids = db.execute(
+        select(Workstation.id).where(Workstation.current_employee_id == id_,
+                                     Workstation.deleted_at.is_(None))
+    ).scalars().all()
+    released = 0
+    for wid in ws_ids:
+        if workstation_repo.release_if_occupied(db, wid, user.id) == 1:
+            assignment_repo.close_ws_open(db, wid, day)
+            released += 1
+
+    # 2) return in-use devices
+    dev_ids = db.execute(
+        select(Device.id).where(Device.current_employee_id == id_, Device.deleted_at.is_(None))
+    ).scalars().all()
+    returned = 0
+    for did in dev_ids:
+        if device_repo.return_if_in_use(db, did, user.id) == 1:
+            assignment_repo.close_dev_open(db, did, day)
+            returned += 1
+
+    # 3) mark employee resigned
+    emp.status = 0
+    emp.resign_date = day
+    emp.updated_by = user.id
+
+    # 4) disable bound accounts
+    disabled = db.execute(
+        sa_update(User).where(User.employee_id == id_, User.deleted_at.is_(None)).values(status=0)
+    ).rowcount
+    account_disabled = disabled > 0
+
+    operation_log_repo.create(db, user_id=user.id, module="employee", action="resign",
+                              target_type="employee", target_id=id_,
+                              detail={"released_workstations": released, "returned_devices": returned,
+                                      "account_disabled": account_disabled},
+                              ip=_ip(req), user_agent=_ua(req))
+    db.commit()
+    return {"released_workstations": released, "returned_devices": returned,
+            "account_disabled": account_disabled}
 
 
 def batch_department(db: Session, user: CurrentUser, data, req: Request) -> dict:

@@ -1,11 +1,8 @@
 from datetime import date
 
-from fastapi import Request
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from app.core.constants import WorkstationStatus
-from app.core.deps import CurrentUser
 from app.core.exceptions import biz, not_found, conflict, invalid_state
 from app.models import Workstation
 from app.repositories import workstation_repo, assignment_repo, employee_repo, operation_log_repo
@@ -54,7 +51,8 @@ def create(db, user, data, req) -> dict:
     try:
         db.flush()
     except IntegrityError:
-        db.rollback(); raise biz(3005, "工位编号已存在")
+        db.rollback()
+        raise biz(3005, "工位编号已存在")
     operation_log_repo.create(db, user_id=user.id, module="workstation", action="create",
                               target_type="workstation", target_id=w.id, detail={"code": w.code},
                               ip=_ip(req), user_agent=_ua(req))
