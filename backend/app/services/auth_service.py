@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.exceptions import unauthorized, account_locked, forbidden
 from app.core.security import (
     verify_password, hash_password, create_access_token, create_refresh_token, decode_token,
+    password_changed_after_issue,
 )
 from app.repositories import user_repo, role_repo, operation_log_repo
 
@@ -34,11 +35,13 @@ def login(db: Session, redis, username: str, password: str,
         raise account_locked()
 
     user = user_repo.get_active_by_username(db, username)
-    if user is None or user.status != 1 or not verify_password(password, user.password_hash):
+    if user is None or user.status != 1:
+        raise unauthorized("账号或密码错误")
+    if not verify_password(password, user.password_hash):
         fails = redis.incr(_fail_key(username))
         redis.expire(_fail_key(username), settings.login_lock_minutes * 60)
         if fails >= settings.login_max_fail:
-            redis.setex(_lock_key(username), settings.login_lock_minutes * 60, "1")
+            redis.set(_lock_key(username), "1", ex=settings.login_lock_minutes * 60)
         raise unauthorized("账号或密码错误")
 
     redis.delete(_fail_key(username))
@@ -64,6 +67,8 @@ def refresh(db: Session, redis, refresh_token: str) -> dict:
     user = user_repo.get_active_by_id(db, payload["sub"])
     if user is None or user.status != 1:
         raise unauthorized()
+    if password_changed_after_issue(payload["iat"], user.pwd_updated_at):
+        raise unauthorized()
     access, _, expires_in = create_access_token(user.id)
     return {"access_token": access, "token_type": "Bearer", "expires_in": expires_in}
 
@@ -71,7 +76,7 @@ def refresh(db: Session, redis, refresh_token: str) -> dict:
 def logout(redis, access_payload: dict) -> None:
     ttl = access_payload["exp"] - int(datetime.now(timezone.utc).timestamp())
     if ttl > 0:
-        redis.setex(f"blacklist:{access_payload['jti']}", ttl, "1")
+        redis.set(f"blacklist:{access_payload['jti']}", "1", ex=ttl)
 
 
 def change_password(db: Session, user_id: str, old_password: str, new_password: str) -> None:

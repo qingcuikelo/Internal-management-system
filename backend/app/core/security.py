@@ -50,3 +50,14 @@ def decode_token(token: str) -> dict:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_alg])
     except jwt.PyJWTError:
         raise unauthorized()
+
+
+def password_changed_after_issue(iat: int, pwd_updated_at) -> bool:
+    """True if the account password was changed at/after a token with this iat was issued.
+    Handles MySQL naive DATETIMEs (stored UTC) and JWT's 1-second iat granularity."""
+    if pwd_updated_at is None:
+        return False
+    ts = pwd_updated_at
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return iat < int(ts.timestamp()) + 1

@@ -76,6 +76,16 @@ def test_change_password_invalidates_old_token(client, admin_user):
     assert _login(client, "admin", "NewPass@123").status_code == 200
 
 
+def test_refresh_rejected_after_password_change(client, admin_user):
+    tokens = _login(client, "admin", "Admin@123").json()["data"]
+    access = tokens["access_token"]
+    refresh = tokens["refresh_token"]
+    client.put("/api/v1/auth/password", headers={"Authorization": f"Bearer {access}"},
+               json={"old_password": "Admin@123", "new_password": "NewPass@123"})
+    resp = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh})
+    assert resp.json()["code"] == 1001
+
+
 def test_weak_password_rejected(client, admin_user):
     token = _login(client, "admin", "Admin@123").json()["data"]["access_token"]
     h = {"Authorization": f"Bearer {token}"}

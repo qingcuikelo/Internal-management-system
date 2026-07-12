@@ -35,7 +35,7 @@ def logout(request: Request, redis=Depends(get_redis), user: CurrentUser = Depen
 
 
 @router.get("/me")
-def me(request: Request, db: Session = Depends(get_db), user: CurrentUser = Depends(get_current_user)):
+def me(request: Request, user: CurrentUser = Depends(get_current_user)):
     return envelope(data={
         "id": user.id, "username": user.username, "role": user.role_code,
         "employee_id": user.employee_id, "permissions": sorted(user.permissions),

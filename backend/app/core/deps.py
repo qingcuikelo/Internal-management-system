@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import timezone
 
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
@@ -7,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.exceptions import unauthorized, forbidden
 from app.core.redis import get_redis
-from app.core.security import decode_token
+from app.core.security import decode_token, password_changed_after_issue
 from app.repositories import user_repo, role_repo
 
 
@@ -41,14 +40,8 @@ def get_current_user(request: Request, db: Session = Depends(get_db),
     user = user_repo.get_active_by_id(db, payload["sub"])
     if user is None or user.status != 1:
         raise unauthorized()
-    # JWT iat has 1-second granularity; treat a token issued in the SAME second as
-    # (or before) the password change as invalidated, so a change made <1s after
-    # login still revokes the old token deterministically.
-    if user.pwd_updated_at is not None:
-        # pwd_updated_at is stored as MySQL DATETIME (naive); explicitly treat as UTC
-        pwd_ts = user.pwd_updated_at.replace(tzinfo=timezone.utc).timestamp() if user.pwd_updated_at.tzinfo is None else user.pwd_updated_at.timestamp()
-        if payload["iat"] < int(pwd_ts) + 1:
-            raise unauthorized()
+    if password_changed_after_issue(payload["iat"], user.pwd_updated_at):
+        raise unauthorized()
 
     role = role_repo.get_by_id(db, user.role_id)
     if role is None:
