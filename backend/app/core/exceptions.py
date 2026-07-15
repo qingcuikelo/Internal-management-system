@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.response import envelope
 
@@ -47,6 +48,13 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.http_status,
             content=envelope(data=None, message=exc.message, code=exc.code),
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http(_: Request, exc: StarletteHTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=envelope(data=None, message=exc.detail, code=3404 if exc.status_code == 404 else exc.status_code),
         )
 
     @app.exception_handler(RequestValidationError)
