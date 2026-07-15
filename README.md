@@ -31,7 +31,7 @@
 ### 2. Docker 一键部署
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:qingcuikelo/Internal-management-system.git
 cd Internal-management-system
 
 # 创建生产环境配置
