@@ -55,7 +55,7 @@ def test_employee_assets_as_super(client, seeded):
 
 def test_employee_assets_out_of_scope_for_dept_manager(client, seeded):
     _make_user(seeded, "boss", "super_admin")
-    boss = _login(client, "boss")
+    _login(client, "boss")
     dept_a = Department(name="A", status=1)
     dept_b = Department(name="B", status=1)
     seeded.add_all([dept_a, dept_b])
@@ -64,7 +64,7 @@ def test_employee_assets_out_of_scope_for_dept_manager(client, seeded):
     emp_b = Employee(employee_no="E2", name="b", gender=1, department_id=dept_b.id, status=1)
     seeded.add_all([emp_a, emp_b])
     seeded.flush()
-    mgr = _make_user(seeded, "mgr", "dept_manager", employee_id=emp_a.id)
+    _make_user(seeded, "mgr", "dept_manager", employee_id=emp_a.id)
     tok = _login(client, "mgr")
     # dept_manager in dept A queries employee in dept B -> 3404
     r = client.get(f"/api/v1/reports/employee-assets?employee_id={emp_b.id}", headers=_h(tok)).json()
