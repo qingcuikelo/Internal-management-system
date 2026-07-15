@@ -43,3 +43,5 @@ export function updateDict(id: string, data: Record<string, any>) {
 export function deleteDict(id: string) {
   return client.delete(`/dicts/${id}`)
 }
+
+export const getByType = getDict

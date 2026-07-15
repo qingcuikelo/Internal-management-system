@@ -65,7 +65,7 @@
         <el-table-column prop="asset_code" label="资产编号" width="150" />
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
-            {{ row.type || '-' }}
+            {{ getDeviceTypeLabel(row.type) }}
           </template>
         </el-table-column>
         <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
@@ -624,6 +624,10 @@ async function handleScrap(row: DeviceItem) {
   } catch {
     // cancelled or handled by interceptor
   }
+}
+
+function getDeviceTypeLabel(key: string): string {
+  return deviceTypes.value.find(t => t.dict_key === key)?.dict_label || key
 }
 
 // ========== Init ==========

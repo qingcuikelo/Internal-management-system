@@ -72,9 +72,7 @@
         <el-table-column prop="phone" label="手机" width="130" />
         <el-table-column label="状态" width="80">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ statusLabel(row.status) }}
-            </el-tag>
+            <StatusTag :status="row.status" type="employee" />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="240" fixed="right">
@@ -360,6 +358,7 @@ import {
 } from '@/api/employees'
 import { getTaskStatus } from '@/api/tasks'
 import Pagination from '@/components/Pagination.vue'
+import StatusTag from '@/components/StatusTag.vue'
 import type { DeptNode } from '@/api/departments'
 import type { EmployeeItem, ResignResult } from '@/api/employees'
 
@@ -369,10 +368,6 @@ function genderLabel(val: number): string {
   if (val === 1) return '男'
   if (val === 2) return '女'
   return '未知'
-}
-
-function statusLabel(val: number): string {
-  return val === 1 ? '在职' : '离职'
 }
 
 // ========== Filters ==========
@@ -704,31 +699,42 @@ async function startImport() {
 
 function pollImportTask() {
   if (!importTaskId.value) return
-  setTimeout(async () => {
-    try {
-      const task = await getTaskStatus(importTaskId.value)
-      importPollingCount.value++
-
-      if (task.status === 'SUCCESS') {
+  let attempts = 0
+  const poll = () => {
+    setTimeout(async () => {
+      attempts++
+      if (attempts > 150) {
         importing.value = false
-        importSuccess.value = true
-        importResultMessage.value = task.result || '导入完成'
-        importResultVisible.value = true
-      } else if (task.status === 'FAILURE') {
-        importing.value = false
-        importSuccess.value = false
-        importResultMessage.value = task.error || '导入失败'
-        importResultVisible.value = true
-      } else {
-        // Still pending/started, poll again
-        pollImportTask()
+        importTaskId.value = ''
+        ElMessage.warning('任务处理超时，请稍后查看')
+        return
       }
-    } catch {
-      importing.value = false
-      importTaskId.value = ''
-      ElMessage.error('查询导入任务状态失败')
-    }
-  }, 2000)
+      try {
+        const task = await getTaskStatus(importTaskId.value)
+        importPollingCount.value++
+
+        if (task.status === 'SUCCESS') {
+          importing.value = false
+          importSuccess.value = true
+          importResultMessage.value = task.result || '导入完成'
+          importResultVisible.value = true
+        } else if (task.status === 'FAILURE') {
+          importing.value = false
+          importSuccess.value = false
+          importResultMessage.value = task.error || '导入失败'
+          importResultVisible.value = true
+        } else {
+          // Still pending/started, poll again
+          poll()
+        }
+      } catch {
+        importing.value = false
+        importTaskId.value = ''
+        ElMessage.error('查询导入任务状态失败')
+      }
+    }, 2000)
+  }
+  poll()
 }
 
 function reloadAfterImport() {
@@ -751,17 +757,36 @@ async function handleExport() {
     const taskId = result.task_id
 
     // Poll for export task
+    let exportAttempts = 0
     const pollExport = (): any => {
       setTimeout(async () => {
+        exportAttempts++
+        if (exportAttempts > 150) {
+          exporting.value = false
+          ElMessage.warning('任务处理超时，请稍后查看')
+          return
+        }
         try {
           const task = await getTaskStatus(taskId)
           if (task.status === 'SUCCESS') {
             const filename = task.result
             const token = localStorage.getItem('access_token')
-            const link = document.createElement('a')
-            link.href = `/api/v1/exports/${filename}?token=${token || ''}`
-            link.click()
-            ElMessage.success('导出成功')
+            try {
+              const response = await fetch(`/api/v1/exports/${filename}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              if (!response.ok) throw new Error('Download failed')
+              const blob = await response.blob()
+              const url = URL.createObjectURL(blob)
+              const link = document.createElement('a')
+              link.href = url
+              link.download = filename
+              link.click()
+              URL.revokeObjectURL(url)
+              ElMessage.success('导出成功')
+            } catch {
+              ElMessage.error('下载文件失败')
+            }
             exporting.value = false
           } else if (task.status === 'FAILURE') {
             ElMessage.error(task.error || '导出失败')

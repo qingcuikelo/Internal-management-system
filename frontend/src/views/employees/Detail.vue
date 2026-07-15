@@ -12,7 +12,7 @@
         <el-descriptions-item label="工号">{{ employee.employee_no }}</el-descriptions-item>
         <el-descriptions-item label="姓名">{{ employee.name }}</el-descriptions-item>
         <el-descriptions-item label="性别">
-          {{ employee.gender === 1 ? '男' : employee.gender === 2 ? '女' : '未知' }}
+          {{ genderLabel[employee.gender] ?? '' }}
         </el-descriptions-item>
         <el-descriptions-item label="部门">{{ employee.department_name || '-' }}</el-descriptions-item>
         <el-descriptions-item label="职位">{{ employee.position || '-' }}</el-descriptions-item>
@@ -21,9 +21,7 @@
         <el-descriptions-item label="直属上级">{{ employee.supervisor_name || '-' }}</el-descriptions-item>
         <el-descriptions-item label="入职日期">{{ employee.hire_date || '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="employee.status === 1 ? 'success' : 'danger'" size="small">
-            {{ employee.status === 1 ? '在职' : '离职' }}
-          </el-tag>
+          <StatusTag :status="employee.status" type="employee" />
         </el-descriptions-item>
         <el-descriptions-item v-if="employee.status === 0" label="离职日期">
           {{ employee.resign_date || '-' }}
@@ -91,6 +89,8 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEmployee } from '@/api/employees'
 import { getEmployeeAssets } from '@/api/reports'
+import StatusTag from '@/components/StatusTag.vue'
+import { genderLabel } from '@/utils/format'
 import type { EmployeeItem } from '@/api/employees'
 import type { EmployeeAssets } from '@/api/reports'
 

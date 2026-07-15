@@ -80,7 +80,7 @@
         <el-table-column prop="location" label="位置" min-width="150" show-overflow-tooltip />
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
-            {{ row.type || '-' }}
+            {{ getWorkstationTypeLabel(row.type) }}
           </template>
         </el-table-column>
         <el-table-column label="状态" width="80">
@@ -596,6 +596,10 @@ async function handleStatusChange(row: WorkstationItem, status: number) {
   } catch {
     // cancelled or handled by interceptor
   }
+}
+
+function getWorkstationTypeLabel(key: string): string {
+  return workstationTypes.value.find(t => t.dict_key === key)?.dict_label || key
 }
 
 // ========== Init ==========
