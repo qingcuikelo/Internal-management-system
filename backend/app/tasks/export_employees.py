@@ -3,10 +3,13 @@ import os
 
 from openpyxl import Workbook
 
+from sqlalchemy import select
+
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.redis import redis_client
 from app.core.celery_app import celery_app
+from app.models import Department
 
 _HEADERS = ["工号", "姓名", "性别", "部门", "职位", "直属上级",
             "手机", "邮箱", "入职日期", "离职日期", "状态"]
@@ -25,7 +28,7 @@ def run_export(department_id: str | None, status: int | None, keyword: str | Non
         page = 1
         total = 0
         while True:
-            params = PageParams(page=page, page_size=100)
+            params = PageParams(page=page, page_size=100, keyword=keyword)
             scope = {"mode": "all"}
             rows, t = employee_repo.paginate(db, params=params, department_id=department_id,
                                               status=status, scope=scope)
@@ -34,8 +37,6 @@ def run_export(department_id: str | None, status: int | None, keyword: str | Non
             dept_ids = {r.department_id for r in rows if r.department_id}
             depts = {}
             if dept_ids:
-                from app.models import Department
-                from sqlalchemy import select
                 dept_rows = db.execute(select(Department).where(Department.id.in_(dept_ids))).scalars().all()
                 depts = {d.id: d.name for d in dept_rows}
             for emp in rows:

@@ -28,6 +28,7 @@ def test_scan_warranty_skips_scrapped(db, seeded):
     d = Device(asset_code="SCRAP", type="laptop", status=4, warranty_expire=date.today() + timedelta(days=5))
     db.add(d)
     db.flush()
+    db.commit()
     from app.tasks.warranty_scan import scan_warranty_expiry
     result = scan_warranty_expiry(days=30)
     codes = {item["asset_code"] for item in result["items"]}
@@ -38,6 +39,7 @@ def test_scan_warranty_skips_expired(db, seeded):
     d = Device(asset_code="OLD", type="laptop", status=2, warranty_expire=date.today() - timedelta(days=10))
     db.add(d)
     db.flush()
+    db.commit()
     from app.tasks.warranty_scan import scan_warranty_expiry
     result = scan_warranty_expiry(days=30)
     codes = {item["asset_code"] for item in result["items"]}

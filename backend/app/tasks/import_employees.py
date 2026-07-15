@@ -68,11 +68,8 @@ def _validate_row(vals: dict, row_num: int, db) -> dict | None:
             return {"row": row_num, "error": f"部门 {dept_id} 不存在"}
     sup_id = vals.get("direct_supervisor_id")
     if sup_id:
-        try:
-            sup = employee_repo.get_active(db, str(sup_id))
-            if sup is None:
-                return {"row": row_num, "error": f"上级 {sup_id} 不存在"}
-        except Exception:
+        sup = employee_repo.get_active(db, str(sup_id))
+        if sup is None:
             return {"row": row_num, "error": f"上级 {sup_id} 不存在"}
     return None
 
