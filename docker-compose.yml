@@ -1,0 +1,184 @@
+version: "3.8"
+
+services:
+  # ===== MySQL 8 =====
+  mysql:
+    image: mysql:8.4
+    container_name: ims-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?required}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ims}
+      MYSQL_USER: ${DB_USER:-ims_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?required}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - internal
+
+  # ===== Redis 7 =====
+  redis:
+    image: redis:7-alpine
+    container_name: ims-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - internal
+
+  # ===== FastAPI backend =====
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ims-backend:latest
+    container_name: ims-backend
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-ims_user}
+      - DB_PASSWORD=${DB_PASSWORD:?required}
+      - DB_NAME=${MYSQL_DATABASE:-ims}
+      - DB_NAME_TEST=${MYSQL_DATABASE:-ims}_test
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:?required}
+      - ACCESS_TOKEN_MINUTES=${ACCESS_TOKEN_MINUTES:-15}
+      - REFRESH_TOKEN_DAYS=${REFRESH_TOKEN_DAYS:-7}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
+      - SEED_ADMIN_USERNAME=${SEED_ADMIN_USERNAME:-admin}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:?required}
+      - CELERY_TASK_ALWAYS_EAGER=false
+      - CELERY_BROKER_DB=1
+      - EXPORTS_DIR=uploads
+    volumes:
+      - exports_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - internal
+
+  # ===== Celery Worker =====
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ims-backend:latest
+    container_name: ims-celery-worker
+    restart: unless-stopped
+    command: >
+      celery -A app.core.celery_app worker
+      --loglevel=info
+      --concurrency=2
+    environment:
+      - APP_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-ims_user}
+      - DB_PASSWORD=${DB_PASSWORD:?required}
+      - DB_NAME=${MYSQL_DATABASE:-ims}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:?required}
+      - CELERY_TASK_ALWAYS_EAGER=false
+      - CELERY_BROKER_DB=1
+      - EXPORTS_DIR=uploads
+    volumes:
+      - exports_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ===== Celery Beat =====
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ims-backend:latest
+    container_name: ims-celery-beat
+    restart: unless-stopped
+    command: >
+      celery -A app.core.celery_app beat
+      --loglevel=info
+    environment:
+      - APP_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=${DB_USER:-ims_user}
+      - DB_PASSWORD=${DB_PASSWORD:?required}
+      - DB_NAME=${MYSQL_DATABASE:-ims}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:?required}
+      - CELERY_TASK_ALWAYS_EAGER=false
+      - CELERY_BROKER_DB=1
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ===== Nginx (frontend + reverse proxy) =====
+  nginx:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ims-frontend:latest
+    container_name: ims-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+# ===== Volumes =====
+volumes:
+  mysql_data:
+  redis_data:
+  exports_data:
+
+# ===== Network =====
+networks:
+  internal:
+    driver: bridge

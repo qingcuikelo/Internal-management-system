@@ -10,3 +10,6 @@
 # Uploaded files (runtime-generated, not source)
 backend/uploads/*
 !backend/uploads/**/.gitkeep
+
+# Docker production secrets — keep local
+.env.prod
