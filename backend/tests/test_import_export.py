@@ -3,7 +3,7 @@ import pytest
 
 from openpyxl import Workbook
 
-from app.models import Role, User, Department
+from app.models import Role, User, Department, Employee
 from app.core.security import hash_password
 from app.services import seed_service
 
@@ -120,3 +120,28 @@ def test_export_non_super_forbidden(client, seeded):
     tok = _login(client, "emp")
     r = client.post("/api/v1/employees/export", headers=_h(tok), json={})
     assert r.json()["code"] == 1003
+
+
+def test_export_creates_downloadable_file(client, seeded):
+    import json
+    from app.core.redis import redis_client
+
+    _make_user(seeded, "boss", "super_admin")
+    tok = _login(client, "boss")
+    emp = Employee(employee_no="EXP001", name="export_me", gender=1, status=1)
+    seeded.add(emp)
+    seeded.flush()
+    seeded.commit()
+    r = client.post("/api/v1/employees/export", headers=_h(tok), json={})
+    assert r.status_code == 202
+    data = r.json()
+    task_id = data["data"]["task_id"]
+    raw = redis_client.get(f"task:{task_id}")
+    assert raw is not None
+    result = json.loads(raw)
+    assert result["status"] == "success"
+    download_url = result["result"]["download_url"]
+    assert download_url.startswith("/exports/")
+    r2 = client.get(f"/api/v1{download_url}", headers=_h(tok))
+    assert r2.status_code == 200
+    assert r2.headers["content-type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

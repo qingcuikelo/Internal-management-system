@@ -141,3 +141,25 @@ def test_non_holder_forbidden(client, seeded):
     # employee role has no report:view
     r = client.get("/api/v1/reports/idle-assets", headers=_h(tok)).json()
     assert r["code"] == 1003
+
+
+def test_warranty_expiring_dept_manager_scope(client, seeded):
+    dept_a = Department(name="A", status=1)
+    dept_b = Department(name="B", status=1)
+    seeded.add_all([dept_a, dept_b])
+    seeded.flush()
+    emp_a = Employee(employee_no="EA", name="a", gender=1, department_id=dept_a.id, status=1)
+    emp_b = Employee(employee_no="EB", name="b", gender=1, department_id=dept_b.id, status=1)
+    seeded.add_all([emp_a, emp_b])
+    seeded.flush()
+    d1 = Device(asset_code="WD1", type="laptop", status=2, current_employee_id=emp_a.id, warranty_expire=date.today() + timedelta(days=10))
+    d2 = Device(asset_code="WD2", type="desktop", status=2, current_employee_id=emp_b.id, warranty_expire=date.today() + timedelta(days=15))
+    seeded.add_all([d1, d2])
+    seeded.flush()
+    _make_user(seeded, "mgr", "dept_manager", employee_id=emp_a.id)
+    tok = _login(client, "mgr")
+    r = client.get("/api/v1/reports/warranty-expiring?days=30", headers=_h(tok)).json()
+    assert r["code"] == 0
+    codes = [item["asset_code"] for item in r["data"]["items"]]
+    assert "WD1" in codes
+    assert "WD2" not in codes
