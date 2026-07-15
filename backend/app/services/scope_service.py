@@ -37,3 +37,7 @@ def asset_scope(db: Session, user: CurrentUser) -> dict:
         return {"mode": "self", "employee_id": desc.get("employee_id")}
     dept_ids = accessible_department_ids(db, user) or set()
     return {"mode": "employees", "employee_ids": employee_repo.ids_in_departments(db, dept_ids)}
+
+
+def report_scope(db: Session, user: CurrentUser) -> dict:
+    return employee_scope(db, user)
