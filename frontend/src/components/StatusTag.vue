@@ -9,7 +9,7 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   status: number
-  type: 'workstation' | 'device' | 'employee'
+  type: 'workstation' | 'device' | 'employee' | 'user'
 }>()
 
 const statusMap: Record<string, Record<number, { type: string; label: string }>> = {
@@ -28,6 +28,10 @@ const statusMap: Record<string, Record<number, { type: string; label: string }>>
   employee: {
     1: { type: 'success', label: '在职' },
     0: { type: 'danger', label: '离职' },
+  },
+  user: {
+    1: { type: 'success', label: '启用' },
+    0: { type: 'danger', label: '禁用' },
   },
 }
 
