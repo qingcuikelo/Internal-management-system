@@ -6,3 +6,6 @@
 
 # Local Claude Code settings (permissions, etc.) — keep machine-local
 .claude/
+
+# Uploaded files (runtime-generated, not source)
+backend/uploads/

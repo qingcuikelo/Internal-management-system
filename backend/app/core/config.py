@@ -31,6 +31,12 @@ class Settings(BaseSettings):
 
     login_max_fail: int = 5
     login_lock_minutes: int = 15
+
+    celery_broker_db: int = 1
+    celery_task_always_eager: bool = True
+    warranty_expiry_days: int = 30
+    exports_dir: str = "uploads"
+
     dict_cache_ttl: int = 600
 
     seed_admin_username: str = "admin"
